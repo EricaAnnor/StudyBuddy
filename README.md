@@ -18,6 +18,10 @@
 ### ⚡ Real-Time Messaging
 - WebSocket-based live chat system.
 - Redis Pub/Sub enables multi-instance scalability, ensuring real-time delivery across distributed deployments.
+- **Online presence tracking via periodic heartbeats** sent over WebSockets.
+- Each client sends heartbeats at fixed intervals to signal activity.
+- Users are marked "offline" automatically if no heartbeat is received within a timeout window.
+- Redis handles temporary presence state for fast access across instances.
 
 ### 🔄 Asynchronous Task Processing
 - Celery + RabbitMQ for background tasks like sending notifications or reminders.
