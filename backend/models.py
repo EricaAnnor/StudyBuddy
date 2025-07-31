@@ -5,6 +5,7 @@ from sqlmodel import Field,Column,JSON,SQLModel,Relationship
 import uuid
 import enum
 from datetime import datetime
+from sqlalchemy import Index,func
 
 class Login(str,enum.Enum):
     local = "local"
@@ -37,6 +38,15 @@ class Friendship(SQLModel, table=True):
     receiver_relationship: "User" = Relationship(
         back_populates="received_links",
         sa_relationship_kwargs={"foreign_keys":"Friendship.receiver"}
+    )
+
+    __table_args__ = (
+        Index(
+            "friendship_unique_pair",
+            func.least("requester", "receiver"),
+            func.greatest("requester", "receiver"),
+            unique=True
+        ),
     )
 
 
@@ -161,7 +171,7 @@ class MessageType(str,enum.Enum):
 class SendMessage(BaseModel):
     messagetype:MessageType
     message:str
-    sender_id:uuid.UUID
+    # sender_id:uuid.UUID
     user_id:Optional[uuid.UUID] = None
     group_id:Optional[uuid.UUID] = None
 
@@ -190,6 +200,11 @@ class Friends_Response(BaseModel):
         orm_mode = True
 
 
-class UserSettings(SQLModel=True):
-    allow_notifications:bool
-    allow_messages_if_in_the_same_group:bool
+class UserSettings(SQLModel,table=True):
+    user_id:uuid.UUID = Field(foreign_key="user.user_id", primary_key = True)
+    allow_notifications:bool = Field(default=True)
+    allow_messages_if_in_the_same_group:bool = Field(default=True)
+
+class UserSettingsBody(BaseModel):
+    allow_notifications:Optional[bool] = None
+    allow_messages_if_in_the_same_group:Optional[bool] = None

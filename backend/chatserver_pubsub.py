@@ -20,7 +20,14 @@ async def message_pubsub():
                 if receiver_id in active_connections:
                     connection = active_connections[receiver_id]
                     if connection:
-                        await connection.send_json(data["message"])
+                        await connection.send_json(
+                            {   
+                                "status":"delivered",
+                                "data":data
+                                
+                                }
+                            
+                            )
 
                         await messagesdb.messages.update_one(
                             {"_id": ObjectId(data["_id"])},  

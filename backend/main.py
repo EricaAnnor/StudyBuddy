@@ -13,6 +13,7 @@ from .config import Settings
 from .auth import authendpoints
 from .group_management import groupmanage
 from .friends_management import friendmanage
+from .usersettings import user_setting
 
 settings = Settings()
 
@@ -48,6 +49,7 @@ app.include_router(usermanage)
 app.include_router(authendpoints)
 app.include_router(groupmanage)
 app.include_router(friendmanage)
+app.include_router(user_setting)
 
 @app.post("/welcome")
 def welcome():
