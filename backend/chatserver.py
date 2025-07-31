@@ -2,7 +2,6 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends,status,HT
 from .models import SendMessage, User, Groups,Friendship,UserSettings,GroupMember
 from sqlalchemy import func
 from .redis import redis
-from .presence import active_connections
 from sqlmodel import select
 from .database import get_session
 from .mongodb import messagesdb
@@ -17,6 +16,9 @@ import asyncio
 chat = APIRouter(prefix="/studybuddy/v1/chat", tags=["Chat service endpoints"])
 # oauthscheme = OAuth2PasswordBearer(tokenUrl="/studybuddy/v1/login")
 settings = Settings()
+
+active_connections = {}
+
 
 async def send_error(websocket: WebSocket, code: str, message: str):
     await websocket.send_json({
@@ -82,7 +84,12 @@ async def sendmessage(websocket: WebSocket, session=Depends(get_session)):
                     for member in group_members:
                         member_id = member.user_id
                         member_id= str(member_id)
-                        connection = active_connections.get(member_id)
+                        user_exists = await redis.exists(f"user:{member_id}") 
+                        if user_exists:
+
+                            connection = active_connections.get(member_id)
+                        else:
+                            connection = None
                         current = {
                             "message_id":str(uuid4()),
                             "message": data.message,
@@ -148,8 +155,10 @@ async def sendmessage(websocket: WebSocket, session=Depends(get_session)):
                                 continue
 
                     receiver_id = str(receiver_id)
-                    connection = active_connections.get(receiver_id)
-                    sender_connection = active_connections.get(sender_id)
+                    receiver_exists = await redis.exists(f"user:{receiver_id}") 
+                    sender_exists = await redis.exists(f"user:{sender_id}")
+                    connection = active_connections.get(receiver_id) if receiver_exists else None
+                    sender_connection = active_connections.get(sender_id) if sender_exists else None
                     
 
                     current = {
@@ -185,6 +194,6 @@ async def sendmessage(websocket: WebSocket, session=Depends(get_session)):
 
     except WebSocketDisconnect:
         if sender_id and sender_id in active_connections:
-            del active_connections[sender_id]
+            del active_connections[str(sender_id)]
 
         print("server disconnected")

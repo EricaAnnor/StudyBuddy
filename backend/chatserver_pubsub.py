@@ -1,5 +1,5 @@
 from .redis import redis
-from .presence import active_connections
+from .chatserver import active_connections
 import json
 from .mongodb import messagesdb
 from bson import ObjectId
