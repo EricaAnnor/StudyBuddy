@@ -170,8 +170,8 @@ class MessageType(str,enum.Enum):
 
 class SendMessage(BaseModel):
     messagetype:MessageType
-    message:str
-    # sender_id:uuid.UUID
+    message:Optional[str] = None
+    attachments:Optional[List[str]] = []
     user_id:Optional[uuid.UUID] = None
     group_id:Optional[uuid.UUID] = None
 
@@ -208,3 +208,7 @@ class UserSettings(SQLModel,table=True):
 class UserSettingsBody(BaseModel):
     allow_notifications:Optional[bool] = None
     allow_messages_if_in_the_same_group:Optional[bool] = None
+
+
+class ProfilePicUrl(BaseModel):
+    url:HttpUrl

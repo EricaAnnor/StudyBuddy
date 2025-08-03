@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     google_redirect_uri:str
     session_secret:str
     maxgroupcapacity:int
+    user_folders:str
+    message_images_folder:str
+    message_documents_folder:str
 
 
     model_config = SettingsConfigDict(env_file=".env")

@@ -93,6 +93,7 @@ async def sendmessage(websocket: WebSocket, session=Depends(get_session)):
                         current = {
                             "message_id":str(uuid4()),
                             "message": data.message,
+                            "attachments":data.attachments or [],
                             "sender_id": str(sender_id),
                             "receiver_id": str(member_id),
                             "message_type": data.messagetype,
@@ -106,6 +107,7 @@ async def sendmessage(websocket: WebSocket, session=Depends(get_session)):
                         queue_input = {
                             "message_id":str(message_id),
                             "message": data.message,
+                            "attachments": data.attachments or [],
                             "sender_id": str(sender_id),
                             "receiver_id": str(member_id),
                             "message_type": data.messagetype,
@@ -164,6 +166,7 @@ async def sendmessage(websocket: WebSocket, session=Depends(get_session)):
                     current = {
                         "message_id":str(uuid4()),
                         "message": data.message,
+                        "attachments": data.attachments or [],
                         "sender_id": str(sender_id),
                         "receiver_id": str(receiver_id),
                         "message_type": data.messagetype,
@@ -175,6 +178,7 @@ async def sendmessage(websocket: WebSocket, session=Depends(get_session)):
                     queue_input = {
                         "message_id":message_id,
                         "message": data.message,
+                        "attachments": data.attachments or [],
                         "sender_id": str(sender_id),
                         "receiver_id": str(receiver_id),
                         "message_type": data.messagetype,
