@@ -6,6 +6,7 @@ import uuid
 import enum
 from datetime import datetime
 from sqlalchemy import Index,func
+from sqlalchemy import Column
 
 class Login(str,enum.Enum):
     local = "local"
@@ -43,8 +44,8 @@ class Friendship(SQLModel, table=True):
     __table_args__ = (
         Index(
             "friendship_unique_pair",
-            func.least("requester", "receiver"),
-            func.greatest("requester", "receiver"),
+            func.least(Column('requester'), Column('receiver')),
+            func.greatest(Column('requester'), Column('receiver')),
             unique=True
         ),
     )
@@ -53,18 +54,13 @@ class Friendship(SQLModel, table=True):
 class UserCreate(SQLModel):
     username:str = Field(nullable=False)
     email:EmailStr = Field(unique = True,nullable=False)
-    password:Optional[str] = None
-    major:str
-    bio:str
-    profile_pic:HttpUrl
-    login_type:Login
+    password:str
+    major:Optional[str] = None
+    bio:Optional[str] = None
+    profile_pic:Optional[HttpUrl] = None
+    login_type:Optional[Login] = None
 
-    @model_validator(mode = "after")
-    def login_check(self)->"UserCreate":
-        if self.login_type == Login.local and not self.password:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,detail="password field cannot be empty")
-        
-        return self
+    
 
 class GroupMember(SQLModel,table=True):
     user_id:uuid.UUID = Field(foreign_key="user.user_id",primary_key=True)
@@ -76,14 +72,16 @@ class GroupMember(SQLModel,table=True):
         )
     user:"User" = Relationship(back_populates="group_links")
 
+DEFAULT_PROFILE_PIC = "https://example.com/default-avatar.png"
+
 class User(SQLModel, table=True):
     user_id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     username: str = Field(index=True, unique=True)
     email: EmailStr
-    password:Optional[str] = None
+    password:str
     major: Optional[str] = None
     bio: Optional[str] = Field(default="hey buddy")
-    profile_pic: str 
+    profile_pic: Optional[str] = Field(default=None)
     login_type:Login 
 
     #relationship
@@ -93,13 +91,16 @@ class User(SQLModel, table=True):
     received_links:List[Friendship] = Relationship(back_populates="receiver_relationship",sa_relationship_kwargs={"foreign_keys":"Friendship.receiver"})
 
 
-class UserResponse(SQLModel):
+class UserResponse(BaseModel):
     user_id:uuid.UUID
-    username:str = Field(unique=True)
+    username:str 
     email:EmailStr
-    major:str
-    bio:str
-    profile_pic:HttpUrl
+    major:Optional[str] = None
+    bio:Optional[str] = None
+    profile_pic:Optional[str] = None
+
+    class Config:
+        orm_mode = True
 
 class UserLogin(SQLModel):
     email:EmailStr
@@ -110,6 +111,7 @@ class UserLogin(SQLModel):
 class Token(BaseModel):
     access_token:str
     access_type:str
+    user:Optional[UserResponse] = None
 
 class RefreshRequest(BaseModel):
     refresh_token: str
@@ -212,3 +214,26 @@ class UserSettingsBody(BaseModel):
 
 class ProfilePicUrl(BaseModel):
     url:HttpUrl
+
+class GetPresence(BaseModel):
+    user_id:uuid.UUID
+
+class GetPresencePesponse(BaseModel):
+    online:bool
+    time:int
+    user_id: uuid.UUID
+
+class FriendFormat(str,enum.Enum):
+    pending = "pending"
+    accepted = "accepted"
+    rejected = "rejected"
+    blocked = "blocked"
+    not_friend = "not_friend"
+
+
+class AllUser(UserResponse):
+    isFriend:FriendFormat
+    isFriendRequest:bool
+
+class AllUsers(BaseModel):
+    users:List[AllUser]

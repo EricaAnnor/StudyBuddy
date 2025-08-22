@@ -31,7 +31,13 @@ ALLOWED_DOCS = {
     ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     ".txt": "text/plain",
     ".csv": "text/csv",
-    ".zip": "application/zip" 
+    ".zip": "application/zip",
+
+    #Videos
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".ogg": "video/ogg" 
+
     
 }
 
@@ -85,7 +91,7 @@ async def upload_picture(file:UploadFile=File(...),token = Depends(oauthscheme))
 
                 await buffer.write(chunk)
 
-        url = f"/studybuddy/v1/files/{unique_name}"
+        url = f"/studybuddy/v1/files/?filename={unique_name}"
 
         return {
             "url":url
@@ -105,49 +111,35 @@ async def upload_picture(file:UploadFile=File(...),token = Depends(oauthscheme))
 async def get_file(
     messagetype: FileType,
     filename: str,
-    token=Depends(oauthscheme)
 ):
-    try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
-        _id = UUID(payload["sub"])
 
-        if not _id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User is not authenticated"
-            )
 
         # Map file type to directory
-        folder_map = {
-            FileType.profile_pic: settings.user_folders,
-            FileType.messageimage: settings.message_images_folder,
-            FileType.messagedocument: settings.message_documents_folder,
-        }
+    folder_map = {
+        FileType.profile_pic: settings.user_folders,
+        FileType.messageimage: settings.message_images_folder,
+        FileType.messagedocument: settings.message_documents_folder,
+    }
 
-        folder = folder_map[messagetype]
-        file_path = os.path.join(folder, os.path.basename(filename))
+    folder = folder_map[messagetype]
+    file_path = os.path.join(folder, os.path.basename(filename))
 
-        if not os.path.exists(file_path):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="File does not exist"
-            )
-
-        ext = os.path.splitext(filename)[1].lower()
-        media_type = (
-            ALLOWED_IMAGES.get(ext)
-            or ALLOWED_DOCS.get(ext)
-            or "application/octet-stream"
+    if not os.path.exists(file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File does not exist"
         )
 
-        return FileResponse(path=file_path, media_type=media_type, filename=filename)
+    ext = os.path.splitext(filename)[1].lower()
+    media_type = (
+        ALLOWED_IMAGES.get(ext)
+        or ALLOWED_DOCS.get(ext)
+        or "application/octet-stream"
+    )
 
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="User not authenticated. Kindly login again")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="User not authenticated. Kindly login again")
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return FileResponse(path=file_path, media_type=media_type, filename=filename)
+
+   
 
     
 
@@ -193,15 +185,16 @@ async def messageimage(images:list[UploadFile] = File(...),token=Depends(oauthsc
                     
                     await buffer.write(chunk)
 
-            url = f"/studybuddy/v1/files/{filename}"
+            url = f"/studybuddy/v1/files/messageimage?filename={filename}"
+
+
             result["uploaded_files"].append({
                 "filename":image.filename,
                 "url":url
             })
 
-        return {
-            "uploaded_files": result
-        }
+        return result
+        
     
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail = "User not authenticated. Kindly login again")
@@ -257,15 +250,14 @@ async def messageimage(documents:list[UploadFile] = File(...),token=Depends(oaut
                     
                     await buffer.write(chunk)
 
-            url = f"/studybuddy/v1/files/{filename}"
+            url = f"/studybuddy/v1/files/messagedocument?filename={filename}"
             result["uploaded_files"].append({
                 "filename":document.filename,
                 "url":url
             })
 
-        return {
-            "uploaded_files": result
-        }
+        return result
+        
     
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail = "User not authenticated. Kindly login again")

@@ -6,6 +6,7 @@ from .models import GroupCreate,GroupMemeberUpdate,Groups,GroupUpdate,GroupRespo
 from .config import Settings
 from sqlmodel import select
 from uuid import UUID
+from sqlalchemy import asc
 
 settings = Settings()
 
@@ -388,3 +389,30 @@ async def deletemember(data: GroupMemeberUpdate, session=Depends(get_session), t
         await session.rollback()  # Rollback on any other error
         print(f"Error removing friend: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@groupmanage.get("/groupmembers")
+async def getgroupmembers(session = Depends(get_session), token = Depends(oauthscheme)):
+    
+    payload = jwt.decode(token,settings.secret_key,algorithms=[settings.algorithm])
+
+    _id = UUID(payload["sub"])
+
+    if not _id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="User is not authenticated")
+    
+    grp_query = await session.execute(select(GroupMember.group_id).where(GroupMember.user_id == _id))
+    grp_res = grp_query.scalars().all()
+
+    res = []
+
+    res_query = await session.execute(select(Groups).where(Groups.group_id.in_(grp_res)).order_by(asc(Groups.group_name)))
+    res = res_query.scalars().all()
+    
+
+    return {
+        "user_groups": res
+    }
+
+
+

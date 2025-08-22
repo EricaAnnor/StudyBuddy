@@ -15,6 +15,8 @@ from .group_management import groupmanage
 from .friends_management import friendmanage
 from .usersettings import user_setting
 from .uploadfile import file_endpoint
+from .getpresence import checkpresence
+from .recents import recents
 
 settings = Settings()
 
@@ -31,6 +33,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000", 
+        "http://localhost:3001", 
+
         "http://localhost:8000"
     ],
     allow_credentials=True,
@@ -52,6 +56,8 @@ app.include_router(groupmanage)
 app.include_router(friendmanage)
 app.include_router(user_setting)
 app.include_router(file_endpoint)
+app.include_router(checkpresence)
+app.include_router(recents)
 
 
 @app.post("/welcome")

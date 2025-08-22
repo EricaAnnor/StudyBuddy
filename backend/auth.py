@@ -1,4 +1,4 @@
-from .models import User,Token,RefreshRequest,UserLogin
+from .models import User,Token,RefreshRequest,UserLogin,UserResponse
 from fastapi import Response,Request,Depends,HTTPException,status,APIRouter
 from sqlmodel import select
 from .database import get_session
@@ -88,18 +88,18 @@ async def login(response: Response, data: OAuth2PasswordRequestForm = Depends(),
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    query = await session.execute(select(User.user_id).where(User.email == data.username))
-    _id = query.scalar_one_or_none()
+    query = await session.execute(select(User).where(User.email == data.username))
+    user = query.scalar_one_or_none()
 
     access_token = create_access_token(
-        {   "sub": str(_id),
+        {   "sub": str(user.user_id),
             "email": data.username,
 
         },
         timedelta(minutes=settings.accessexpiretime)
     )
     refresh_token = create_refresh_token(
-        {   "sub": str(_id),
+        {   "sub": str(user.user_id),
             "email": data.username,
 
         },
@@ -115,9 +115,20 @@ async def login(response: Response, data: OAuth2PasswordRequestForm = Depends(),
         max_age=60 * 60 * 24 * 7
     )
 
+
+
     return Token(
         access_token=access_token, 
         access_type="Bearer",
+        user = UserResponse(
+            user_id = user.user_id,
+            username = user.username,
+            email = user.email,
+            major = user.major,
+            bio = user.bio,
+            profile_pic = user.profile_pic if user.profile_pic and user.profile_pic != "None" else None
+
+            )
         )
 
 @authendpoints.post("/refresh")

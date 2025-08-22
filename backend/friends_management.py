@@ -3,81 +3,95 @@ from sqlmodel import select
 from .database import get_session
 from fastapi.security import OAuth2PasswordBearer
 import jwt
-from .models import Friend_Payload,Friendship,User,Status,UpdateFriendRequest,Friends_Response
+from .models import Friend_Payload,Friendship,User,Status,UpdateFriendRequest,Friends_Response,UserResponse
 from .config import Settings
 from uuid import UUID
+from sqlalchemy import asc,or_,and_
+from sqlalchemy.exc import IntegrityError
 
 
 friendmanage = APIRouter(prefix="/studybuddy/v1",tags=["Friend management endpoints"])
 Oauthscheme = OAuth2PasswordBearer(tokenUrl="/studybuddy/v1/login")
 settings = Settings()
 
+# Add these imports at the top of your file:
+# from sqlalchemy import select, or_, and_
 
 @friendmanage.post("/friend/sendrequest")
-async def sendfriendrequest(data:Friend_Payload,session=Depends(get_session),token=Depends(Oauthscheme)):
+async def sendfriendrequest(data: Friend_Payload, session=Depends(get_session), token=Depends(Oauthscheme)):
     try:
-        payload = jwt.decode(token,settings.secret_key,algorithms=[settings.algorithm])
-
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         _id = UUID(payload["sub"])
-
+        
         if not _id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail = "User is not authenticated"
+                detail="User is not authenticated"
             )
+            
         if data.friend_id == _id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="You cannot send a friend request to yourself."
             )
-
-        
+            
+        # Check if receiver exists
         receiver_exist_query = await session.execute(select(User).where(User.user_id == data.friend_id))
         receiver_exist = receiver_exist_query.scalar_one_or_none()
-
+        
         if receiver_exist is None:
             raise HTTPException(
-                status_code = status.HTTP_404_NOT_FOUND,
-                detail = "Receiver not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Receiver not found"
             )
-        
+            
+        # Check if friendship already exists - using OR conditions to check both directions
         check_friendship_query = await session.execute(select(Friendship).where(
-            ((Friendship.requester == _id) & (Friendship.receiver == data.friend_id)) | 
-            ((Friendship.requester == data.friend_id)  & (Friendship.receiver == _id))
+            or_(
+                and_(Friendship.requester == _id, Friendship.receiver == data.friend_id),
+                and_(Friendship.requester == data.friend_id, Friendship.receiver == _id)
+            )
         ))
-
         check_friendship = check_friendship_query.scalar_one_or_none()
-
+        
         if check_friendship is not None:
-            # if check_friendship.status == "pending":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail = f"Friend request has already been sent.Status:{check_friendship.status} "
+                detail=f"Friend request has already been sent. Status: {check_friendship.status}"
             )
-
-
+            
+        # Create new friendship request
         request = Friendship(
             requester=_id,
-            receiver = data.friend_id,
-            status = "pending"
+            receiver=data.friend_id,
+            status="pending"
         )
-
+        
         session.add(request)
-
         await session.commit()
-
+        
         return {
             "detail": "Request successfully sent"
         }
+        
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail = "User not authenticated. Kindly login again")
+        raise HTTPException(status_code=401, detail="User not authenticated. Kindly login again")
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail = "User not authenticated. Kindly login again")
+        raise HTTPException(status_code=401, detail="User not authenticated. Kindly login again")
+    except IntegrityError as e:
+        await session.rollback()
+        if "friendship_unique_pair" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A friendship request already exists between these users"
+            )
+        else:
+            print(f"Database integrity error: {e}")
+            raise HTTPException(status_code=500, detail="Database constraint violation")
     except Exception as e:
         await session.rollback()  # Rollback on any other error
-        print(f"Error removing friend: {e}")
+        print(f"Error sending friend request: {e}")  # Fixed error message
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 
 
@@ -230,8 +244,10 @@ async def get_friends(token=Depends(Oauthscheme), session=Depends(get_session)):
                 if friend.requester != _id:  
                     user_friends.append(friend.requester)
 
-        friends_query = await session.execute(select(User).where(User.user_id.in_(user_friends)))
+        friends_query = await session.execute(select(User).where(User.user_id.in_(user_friends)).order_by(asc (User.username)))
         res_friends = friends_query.scalars().all()
+
+        res_friends = [UserResponse.model_validate(cur,from_attributes=True).model_dump() for cur in res_friends]
 
         return {"friends":res_friends}
 
