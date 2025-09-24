@@ -121,7 +121,7 @@ class UserUpdate(BaseModel):
     email:Optional[EmailStr] = None
     major:Optional[str] = None
     bio:Optional[str]  = None
-    profile_pic:Optional[HttpUrl] = None
+    profile_pic:Optional[str] = None
 
 
 #group model

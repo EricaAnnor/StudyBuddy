@@ -11,7 +11,7 @@ async def message_pubsub():
     while True:  # Keep retrying if connection fails
         try:
             pubsub = redis.pubsub()
-            await pubsub.psubscribe("receiver_id:*")
+            await pubsub.psubscribe("receiver_id:span*")
             print("Successfully subscribed to receiver_id:* pattern")
 
             async for message in pubsub.listen():

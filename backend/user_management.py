@@ -91,7 +91,7 @@ async def update_user(data:UserUpdate,session = Depends(get_session),token:str=D
 
         if user is not None:
             url = ""
-            for atr,value in data.model_dump(exclude_unset=True).items():
+            for atr,value in data.model_dump(exclude_unset=True,exclude_none=True).items():
                 if atr == "profile_pic":
                     url = value
                     value = str(value)
@@ -107,7 +107,7 @@ async def update_user(data:UserUpdate,session = Depends(get_session),token:str=D
                 email = user.email,
                 major = user.major,
                 bio = user.bio,
-                profile_pic = url
+                profile_pic = user.profile_pic
 
             )
         else:
@@ -232,6 +232,43 @@ async def getAllUsers(session = Depends(get_session),token = Depends(oauth2schem
     
 
 
+
+@usermanage.get("/user")
+async def get_user(token=Depends(oauth2scheme),session=Depends(get_session)):
+    try:
+        payload = jwt.decode(token,settings.secret_key,algorithms=[settings.algorithm])
+
+        _id = payload.get("sub")
+
+        if not _id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail = "User not authenticated. Kindly login again",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        _id = UUID(_id)
+
+        query = await session.execute(select(User).where(User.user_id == _id))
+        user = query.scalar_one_or_none()
+
+        if user == None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail = "User not found")
+        
+        return { "user" : UserResponse(
+                user_id = user.user_id,
+                username = user.username,
+                email = user.email,
+                major = user.major,
+                bio = user.bio,
+                profile_pic = user.profile_pic
+
+            )}
+    
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail = "User not authenticated. Kindly login again")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail = "User not authenticated. Kindly login again")
+        
 
 
 
