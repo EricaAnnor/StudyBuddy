@@ -1,6 +1,6 @@
 # 📚 StudyBuddy
 
-**StudyBuddy** is a robust, scalable backend system built with **FastAPI** for a learning platform that fosters collaboration through real-time messaging, user groups, and a rich social layer.
+**StudyBuddy**  is a full-stack learning platform combining a FastAPI backend and a Next.js frontend. It enables students to collaborate through real-time messaging, user groups, friendships, and a rich social layer, all in a seamless and responsive interface.
 
 ---
 
